@@ -1,11 +1,3 @@
-// const mongoose =require('mongoose');
-
-// module.exports = mongoose.model('carstypes',{
-//     carname:String,
-//     description:String,
-//     imageUrl:String,
-// });
-
 const mongoose = require('mongoose')
 const { Schema } = mongoose;
 

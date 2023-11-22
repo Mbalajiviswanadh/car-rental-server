@@ -1,8 +1,4 @@
 const carsModel=require('../models/carsModel')
-
-
-
-
 module.exports.getcars = async (req, res) => {
 
     // if (req.permissions.indexOf('view-cars') === -1) {
