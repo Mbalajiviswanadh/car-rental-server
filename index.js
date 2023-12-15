@@ -27,7 +27,6 @@ mongoose.set("strictQuery",true);
 //   const db = mongoose.connection;
 //   db.on("open",()=>console.log("Connected to DB"));
 //   db.on("error",()=>console.log("Error occurred"));
-MONGO_CONNECTION = 'mongodb+srv://carrental:wheelsonweb@cluster0.sdjioc0.mongodb.net/wheelsonweb';
 
 mongoose.connect('mongodb+srv://carrental:wheelsonweb@cluster0.sdjioc0.mongodb.net/wheelsonweb')
     .then(() => {
