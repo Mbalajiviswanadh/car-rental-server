@@ -1,40 +1,39 @@
-const express = require('express');
-const mongoose =require('mongoose');
-const bodyParser = require('body-parser');
-const userModel = require('./models/user'); 
-const ownerModel = require('./models/owner');
-const cors = require('cors');
-const carModel =require('./models/wow');
-const app=express();
-const ownerloginModel = require('./models/ownerlogin');
-// const UserRegister =require('./controller/UserRegister');
-const carsController =require('./controller/carsController');
-const commentRoutes =require('./controller/commentsroutes');
-// const router = require("./ownerside/addcar");
-// const getcar =require("../server/models/getcar");
-// const carsSchema = require("./models/getcar");
+const express = require("express");
+const mongoose = require("mongoose");
+const bodyParser = require("body-parser");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const bcrypt = require("bcrypt");
 
-// mongodb://localhost:27017/wheelsonweb
+dotenv.config();
+
+const userModel = require("./models/user");
+const ownerModel = require("./models/owner");
+const carModel = require("./models/wow");
+const ownerloginModel = require("./models/ownerlogin");
+const carsController = require("./controller/carsController");
+const commentRoutes = require("./controller/commentsroutes");
+
+const app = express();
 
 app.use(bodyParser.json());
-  app.use(bodyParser.urlencoded({extended:true}));
-  app.use(cors());
- app.use(express.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cors());
+app.use(express.json());
 
+mongoose.set("strictQuery", true);
 
-mongoose.set("strictQuery",true);
-// mongoose.connect("mongodb+srv://carrental:wheelsonweb@cluster0.sdjioc0.mongodb.net/wheelsonweb");
-//   const db = mongoose.connection;
-//   db.on("open",()=>console.log("Connected to DB"));
-//   db.on("error",()=>console.log("Error occurred"));
-
-mongoose.connect('mongodb+srv://carrental:wheelsonweb@cluster0.sdjioc0.mongodb.net/wheelsonweb')
-    .then(() => {
-        console.log('DB is Connected.');
-    })
-    .catch((err) => {
-        console.log('DB Err.', err);
-    });
+mongoose
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => {
+    console.log("DB is Connected.");
+  })
+  .catch((err) => {
+    console.log("DB Err.", err);
+  });
 
 // User registration route
 app.post("/register/user", async (req, res) => {
@@ -44,17 +43,22 @@ app.post("/register/user", async (req, res) => {
     });
 
     if (existingUser) {
-      return res.status(400).json({ error: 'User with the same username or email already exists' });
+      return res
+        .status(400)
+        .json({ error: "User with the same username or email already exists" });
     }
 
-    const user = await userModel.create(req.body);
-    res.json(user);
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    const user = await userModel.create({
+      ...req.body,
+      password: hashedPassword,
+    });
+    res.status(201).json(user);
   } catch (err) {
-    res.json(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-  
 // Owner registration route
 app.post("/register/owner", async (req, res) => {
   try {
@@ -63,99 +67,79 @@ app.post("/register/owner", async (req, res) => {
     });
 
     if (existingOwner) {
-      return res.status(400).json({ error: 'Owner with the same username or email already exists' });
+      return res
+        .status(400)
+        .json({
+          error: "Owner with the same username or email already exists",
+        });
     }
 
-    const owner = await ownerModel.create(req.body);
-    res.json(owner);
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    const owner = await ownerModel.create({
+      ...req.body,
+      password: hashedPassword,
+    });
+    res.status(201).json(owner);
   } catch (err) {
-    res.json(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
 // Owner login route
 app.post("/ownerloginSchema", async (req, res) => {
   try {
-    // Check if a user with the given email exists
     const existingUser = await ownerModel.findOne({ email: req.body.email });
 
     if (!existingUser) {
-      return res.status(400).json({ error: 'User not found. Please sign up first.' });
+      return res
+        .status(400)
+        .json({ error: "User not found. Please sign up first." });
     }
 
-    // Check if the provided password matches the stored password
-    if (existingUser.password !== req.body.password) {
-      return res.status(401).json({ error: 'Invalid password' });
+    const isPasswordValid = await bcrypt.compare(
+      req.body.password,
+      existingUser.password
+    );
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid password" });
     }
+
     const ownerLoginEntry = await ownerloginModel.create({
       email: existingUser.email,
-      password: existingUser.password, // You might want to hash the password before storing it
+      password: existingUser.password, // Consider storing the hashed password
     });
 
-    // If the user exists and the password is correct, you can implement further actions
-    // For example, you might generate and return a JWT token for authentication
-
-    res.json({ message: 'Login successful' });
+    res.status(200).json({ message: "Login successful" });
   } catch (err) {
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).json({ error: "Internal Server Error" });
   }
-  
 });
 
-  
 // Handle the POST request for car registration
 app.post("/carsSchema", async (req, res) => {
   try {
-    // Check if a user with the given email already exists
     const existingUser = await userModel.findOne({ email: req.body.email });
 
     if (!existingUser) {
-      return res.status(400).json({ error: 'Signup first' });
+      return res.status(400).json({ error: "Signup first" });
     }
 
-    // If the user exists, create a new car entry
     const car = await carModel.create(req.body);
-    res.json(car);
+    res.status(201).json(car);
   } catch (err) {
-    res.json(err);
+    res.status(500).json({ error: err.message });
   }
-  // Perform any necessary operations with the data
 });
 
+app.post("/add-cars", carsController.addcars);
+app.get("/get-cars", carsController.getcars);
+app.post("/edit-cars", carsController.editcar);
+app.get("/get-car/:id", carsController.getcarsById);
+app.get("/delete-cars", carsController.deletecars);
+app.post("/delete-cars", carsController.deletecars);
+app.use("/api/comments", commentRoutes);
 
-
-
-
-
-// app.post('/register/user',UserRegister.adduser)
-app.post('/add-cars', carsController.addcars)
-app.get('/get-cars',carsController.getcars)
-app.post('/edit-cars',carsController.editcar)
-app.get('/get-car/:id',carsController.getcarsById)
-app.get('/delete-cars',carsController.deletecars)
-app.post('/delete-cars',carsController.deletecars)
-app.use('/api/comments', commentRoutes);
-
-
-
-
-
-//  app.post("/create-car", (req, res) => {
-//   // Handle the POST request here
-//   car.create(req.body)
-//     .then(cars => res.json(cars))
-//     .catch(err => res.json(err));
-//   // Perform any necessary operations with the data
-// });
-// app.use("/router",router);
- 
-
-
-const PORT =  4000;
- app.listen(PORT,()=>{
-    console.log(`Server started at port : ${PORT} `);
-
-  });
-
-
-  
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`Server started at port: ${PORT}`);
+});
